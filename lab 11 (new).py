@@ -1,64 +1,43 @@
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LinearRegression
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import regularizers
-from tensorflow.keras.callbacks import EarlyStopping
-import joblib
+from tensorflow.keras import layers, regularizers
+import pickle
+import numpy as np
 
-# Load dataset
-data = pd.read_csv(r"C:\Users\sydne\OneDrive\Documents\Computer Applications\lab_11_bridge_data.xlsx")
+# Load the preprocessing pipeline
+preprocessor_path = "preprocessor.pkl"
+with open(preprocessor_path, "rb") as f:
+    preprocessor = pickle.load(f)
 
-# Drop identifier column
-data = data.drop(columns=['Bridge_ID'])
+# Transform training and test data
+X_train_transformed = preprocessor.fit_transform(X_train)
+X_test_transformed = preprocessor.transform(X_test)
 
-# Define features and target
-selected_features = ['Span_ft', 'Deck_Width_ft', 'Age_Years', 'Num_Lanes', 'Material', 'Condition_Rating']
-target = 'Max_Load_Tons'
-X = data[selected_features]
-y = data[target]
-
-# Preprocessing pipeline
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('num', StandardScaler(), ['Span_ft', 'Deck_Width_ft', 'Age_Years', 'Num_Lanes', 'Condition_Rating']),
-        ('cat', OneHotEncoder(sparse_output=False, handle_unknown='ignore'), ['Material'])
-    ])
-
-X_processed = preprocessor.fit_transform(X)
-
-# Split dataset
-X_train, X_val, y_train, y_val = train_test_split(X_processed, y, test_size=0.2, random_state=42)
-
-# Save preprocessor
-joblib.dump(preprocessor, 'preprocessor.pkl')
-
-# Define model
+# Define the ANN model
 model = keras.Sequential([
-    keras.layers.Dense(64, activation='relu', input_shape=(X_train.shape[1],),
-                       kernel_regularizer=regularizers.l2(0.001)),
-    keras.layers.Dropout(0.2),
-    keras.layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.001)),
-    keras.layers.Dropout(0.2),
-    keras.layers.Dense(1)
+    layers.Dense(64, activation="relu", kernel_regularizer=regularizers.l2(0.01), input_shape=(X_train_transformed.shape[1],)),
+    layers.Dropout(0.2),
+    layers.Dense(32, activation="relu", kernel_regularizer=regularizers.l2(0.01)),
+    layers.Dropout(0.2),
+    layers.Dense(1)  # Output layer for regression
 ])
 
-model.compile(optimizer='adam', loss='mse')
+# Compile the model
+model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
+              loss="mse",
+              metrics=["mae"])
 
-# Train model
-early_stop = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
-history = model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=200, batch_size=32, callbacks=[early_stop], verbose=0)
+# Define early stopping
+early_stopping = keras.callbacks.EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)
 
-# Save model
-model.save('bridge_load_model.h5')
+# Train the model
+history = model.fit(X_train_transformed, y_train, 
+                    validation_data=(X_test_transformed, y_test), 
+                    epochs=100, 
+                    batch_size=16, 
+                    callbacks=[early_stopping], 
+                    verbose=1)
 
-# Evaluate model
-y_pred = model.predict(X_val).flatten()
-mape = np.mean(np.abs((y_val - y_pred) / y_val)) * 100
-print(f"MAPE: {mape:.2f}%")
+# Save the trained model
+model.save("bridge_load_ann.h5")
+

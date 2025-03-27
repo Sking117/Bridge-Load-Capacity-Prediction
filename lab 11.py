@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 
 # Load the dataset (replace 'your_dataset.csv' with your actual file)
 try:
-    df = pd.read_csv(r"C:\Users\sydne\Downloads\lab_11_bridge_data.csv") # Assuming bridge_data.csv exists
+    df = pd.read_csv(r"C:\Users\sydne\OneDrive\Documents\Computer Applications\lab_11_bridge_data.xlsx") # Assuming bridge_data.csv exists
 except FileNotFoundError:
-    print("Error: bridge_data.csv not found. Please ensure the file is in the correct location.")
+    print("Error: "C:\Users\sydne\OneDrive\Documents\Computer Applications\lab_11_bridge_data.xlsx" not found. Please ensure the file is in the correct location.")
     exit()
 
 # Data Exploration and Preprocessing

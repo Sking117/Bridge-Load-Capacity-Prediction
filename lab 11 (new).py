@@ -13,7 +13,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 import joblib
 
 # Load dataset
-data = pd.read_csv("C:\Users\sydne\OneDrive\Documents\Computer Applications\lab_11_bridge_data.csv")
+data = pd.read_csv(r"C:\Users\sydne\OneDrive\Documents\Computer Applications\lab_11_bridge_data.xlsx")
 
 # Drop identifier column
 data = data.drop(columns=['Bridge_ID'])

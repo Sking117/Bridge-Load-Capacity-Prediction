@@ -1,68 +1,43 @@
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.metrics import mean_squared_error
-from sklearn.neural_network import MLPRegressor
-import matplotlib.pyplot as plt
-
-# Load the dataset (replace 'your_dataset.csv' with your actual file)
-try:
-    df = pd.read_csv(r"C:\Users\sydne\OneDrive\Documents\Computer Applications\lab_11_bridge_data.xlsx") # Assuming bridge_data.csv exists
-except FileNotFoundError:
-    print("Error: "C:\Users\sydne\OneDrive\Documents\Computer Applications\lab_11_bridge_data.xlsx" not found. Please ensure the file is in the correct location.")
-    exit()
-
-# Data Exploration and Preprocessing
-print(df.head())
-print(df.info())
-print(df.describe())
-
-# Handle missing values (example: fill with mean for numerical, mode for categorical)
-for column in df.columns:
-    if df[column].isnull().any():
-        if pd.api.types.is_numeric_dtype(df[column]):
-            df[column].fillna(df[column].mean(), inplace=True)
-        else:
-            df[column].fillna(df[column].mode()[0], inplace=True)
-
-# Encode categorical variables (example: 'Bridge_Type')
-le = LabelEncoder()
-df['Bridge_Type'] = le.fit_transform(df['Bridge_Type'])
-
-# Normalize/standardize features
-X = df.drop('Max_Load_Tons', axis=1)
-y = df['Max_Load_Tons']
-
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
-
-# Split data into training and test sets
-X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
-
-# Model Development (using sklearn's MLPRegressor)
-model = MLPRegressor(hidden_layer_sizes=(128, 64), activation='relu', solver='adam',
-                     alpha=1e-5, max_iter=500, early_stopping=True, validation_fraction=0.2,
-                     n_iter_no_change=10, random_state=42)
-
-# Training and Evaluation
-model.fit(X_train, y_train)
-
-# Plot training/validation loss vs. epochs (using loss_curve_)
-plt.plot(model.loss_curve_, label='Training Loss')
-plt.xlabel('Epochs')
-plt.ylabel('Loss')
-plt.legend()
-plt.show()
-
-# Evaluation on test set
-y_pred = model.predict(X_test)
-test_mse = mean_squared_error(y_test, y_pred)
-print(f'Test MSE: {test_mse:.4f}')
-
-#Saving the model.
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers, regularizers
 import pickle
-with open('sklearn_bridge_model.pkl', 'wb') as f:
-    pickle.dump(model, f)
+import numpy as np
 
-print("sklearn model saved as sklearn_bridge_model.pkl")
+# Load the preprocessing pipeline
+preprocessor_path = "preprocessor.pkl"
+with open(preprocessor_path, "rb") as f:
+    preprocessor = pickle.load(f)
+
+# Transform training and test data
+X_train_transformed = preprocessor.fit_transform(X_train)
+X_test_transformed = preprocessor.transform(X_test)
+
+# Define the ANN model
+model = keras.Sequential([
+    layers.Dense(64, activation="relu", kernel_regularizer=regularizers.l2(0.01), input_shape=(X_train_transformed.shape[1],)),
+    layers.Dropout(0.2),
+    layers.Dense(32, activation="relu", kernel_regularizer=regularizers.l2(0.01)),
+    layers.Dropout(0.2),
+    layers.Dense(1)  # Output layer for regression
+])
+
+# Compile the model
+model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
+              loss="mse",
+              metrics=["mae"])
+
+# Define early stopping
+early_stopping = keras.callbacks.EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)
+
+# Train the model
+history = model.fit(X_train_transformed, y_train, 
+                    validation_data=(X_test_transformed, y_test), 
+                    epochs=100, 
+                    batch_size=16, 
+                    callbacks=[early_stopping], 
+                    verbose=1)
+
+# Save the trained model
+model.save("bridge_load_ann.h5")
+

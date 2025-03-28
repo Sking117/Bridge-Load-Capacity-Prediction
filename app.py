@@ -1,57 +1,60 @@
-import streamlit as st
 import pandas as pd
+import numpy as np
 import tensorflow as tf
+from tensorflow import keras
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 import pickle
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
 
-# Load preprocessing pipeline and trained model
-preprocessor_path = "preprocessor.pkl"
-model_path = "bridge_load_ann.h5"
+# Load dataset
+df = pd.read_csv("lab_11_bridge_data.csv")
 
-with open(preprocessor_path, "rb") as f:
-    preprocessor = pickle.load(f)
+# Drop Bridge_ID
+df.drop(columns=['Bridge_ID'], inplace=True)
 
-model = tf.keras.models.load_model(model_path)
+# One-hot encode Material
+encoder = OneHotEncoder(sparse=False, drop='first')
+material_encoded = encoder.fit_transform(df[['Material']])
+material_cols = encoder.get_feature_names_out(['Material'])
+df_encoded = pd.DataFrame(material_encoded, columns=material_cols)
 
-# Streamlit App
-st.title('Bridge Load Capacity Prediction')
+# Normalize numerical features
+scaler = StandardScaler()
+numerical_cols = ['Span_ft', 'Deck_Width_ft', 'Age_Years', 'Num_Lanes', 'Condition_Rating']
+df_scaled = pd.DataFrame(scaler.fit_transform(df[numerical_cols]), columns=numerical_cols)
 
-# Sidebar for user inputs
-st.sidebar.header('Input Parameters')
-def user_input_features():
-    Span_ft = st.sidebar.slider('Span (ft)', 100, 1000, 300)
-    Deck_Width_ft = st.sidebar.slider('Deck Width (ft)', 10, 50, 25)
-    Age_Years = st.sidebar.slider('Age (years)', 1, 100, 50)
-    Num_Lanes = st.sidebar.slider('Number of Lanes', 1, 8, 2)
-    Condition_Rating = st.sidebar.slider('Condition Rating (1-5)', 1, 5, 3)
-    Material = st.sidebar.selectbox('Material', ['Steel', 'Concrete', 'Composite'])
-    
-    data = {
-        'Span_ft': Span_ft,
-        'Deck_Width_ft': Deck_Width_ft,
-        'Age_Years': Age_Years,
-        'Num_Lanes': Num_Lanes,
-        'Condition_Rating': Condition_Rating,
-        'Material': Material
-    }
-    
-    features = pd.DataFrame(data, index=[0])
-    return features
+# Combine processed data
+df_final = pd.concat([df_scaled, df_encoded, df[['Max_Load_Tons']]], axis=1)
 
-input_df = user_input_features()
+# Train-test split
+X = df_final.drop(columns=['Max_Load_Tons'])
+y = df_final['Max_Load_Tons']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Display user inputs
-st.subheader('User Input Parameters')
-st.write(input_df)
+# Save preprocessing pipeline
+with open("preprocessing.pkl", "wb") as f:
+    pickle.dump((scaler, encoder), f)
 
-# Preprocess input data
-input_transformed = preprocessor.transform(input_df)
+# Build ANN model
+def build_model():
+    model = keras.Sequential([
+        keras.layers.Dense(64, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01), input_shape=(X_train.shape[1],)),
+        keras.layers.Dropout(0.2),
+        keras.layers.Dense(32, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01)),
+        keras.layers.Dropout(0.2),
+        keras.layers.Dense(1)  # Output layer for regression
+    ])
+    model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+    return model
 
-# Predict the load capacity
-prediction = model.predict(input_transformed)
+# Train model
+model = build_model()
+early_stopping = keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)
+history = model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=100, batch_size=32, callbacks=[early_stopping])
 
-# Display the prediction
-st.subheader('Predicted Maximum Load Capacity (tons)')
-st.write(f"{prediction[0][0]:.2f} tons")
+# Save trained model
+model.save("tf_bridge_model.h5")
 
+# Evaluate model
+test_loss, test_mae = model.evaluate(X_test, y_test)
+print(f"Test MAE: {test_mae}")

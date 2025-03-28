@@ -7,8 +7,6 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 import pickle
 from sklearn.preprocessing import OneHotEncoder
 
-encoder = OneHotEncoder(sparse=False)
-
 
 # Load dataset
 df = pd.read_csv("lab_11_bridge_data.csv")

@@ -3,13 +3,15 @@ import pandas as pd
 import joblib
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import regularizers
-from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.losses import MeanSquaredError  # Import MSE explicitly
 
 # Load the trained model and preprocessing pipeline
 try:
-    model_all = keras.models.load_model('model_all.h5', custom_objects={'MeanSquaredError': MeanSquaredError}) # load with custom_objects
+    # Explicitly define MSE when loading the model
+    model_all = keras.models.load_model(
+        'model_all.h5',
+        custom_objects={'mse': MeanSquaredError}  # Use MSE class
+    )
     preprocessor_all = joblib.load('preprocessor_all.pkl')
 except FileNotFoundError:
     st.error("Model or preprocessing pipeline files not found. Please ensure 'model_all.h5' and 'preprocessor_all.pkl' are in the same directory.")

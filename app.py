@@ -4,6 +4,7 @@ import joblib
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.losses import MeanSquaredError  # Import MSE explicitly
+import urllib.request
 
 # Load the trained model and preprocessing pipeline
 try:
@@ -16,6 +17,11 @@ try:
 except FileNotFoundError:
     st.error("Model or preprocessing pipeline files not found. Please ensure 'model_all.h5' and 'preprocessor_all.pkl' are in the same directory.")
     st.stop()
+
+if not os.path.exists("model_all.h5"):
+    urllib.request.urlretrieve(r"C:\Users\sydne\OneDrive\Documents\Computer Applications\app.py", "model_all.h5")
+if not os.path.exists("preprocessor_all.pkl"):
+    urllib.request.urlretrieve(r"C:\Users\sydne\OneDrive\Documents\Computer Applications\preprocessing_all.pkl", "preprocessor_all.pkl")
 
 # Function to make predictions
 def predict_load(input_data):

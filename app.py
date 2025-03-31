@@ -1,62 +1,55 @@
+import streamlit as st
 import pandas as pd
-import numpy as np
+import joblib
 import tensorflow as tf
-from tensorflow import keras
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-import pickle
-from sklearn.preprocessing import OneHotEncoder
+import numpy as np
 
+# Load the trained model and preprocessing pipeline
+try:
+    model = tf.keras.models.load_model('bridge_load_model.h5')
+    preprocessor = joblib.load('preprocessing_pipeline.pkl')
+except FileNotFoundError:
+    st.error("Model or preprocessing pipeline files not found. Please ensure 'bridge_load_model.h5' and 'preprocessing_pipeline.pkl' are in the same directory.")
+    st.stop()  # Stop execution if files are missing
 
-# Load dataset
-df = pd.read_csv("lab_11_bridge_data.csv")
+# Function to make predictions
+def predict_load(input_data):
+    try:
+        input_df = pd.DataFrame([input_data])
+        processed_input = preprocessor.transform(input_df)
+        prediction = model.predict(processed_input)
+        return prediction[0][0]
+    except Exception as e:
+        st.error(f"An error occurred during prediction: {e}")
+        return None
 
-# Drop Bridge_ID
-df.drop(columns=['Bridge_ID'], inplace=True)
+# Streamlit app
+def main():
+    st.title("Bridge Maximum Load Capacity Prediction")
 
-# One-hot encode Material
-encoder = OneHotEncoder(sparse=False, drop='first')
-material_encoded = encoder.fit_transform(df[['Material']])
-material_cols = encoder.get_feature_names_out(['Material'])
-df_encoded = pd.DataFrame(material_encoded, columns=material_cols)
+    # Input fields
+    span_ft = st.number_input("Span (ft)", min_value=0.0, value=100.0)
+    deck_width_ft = st.number_input("Deck Width (ft)", min_value=0.0, value=30.0)
+    age_years = st.number_input("Age (Years)", min_value=0, value=50)
+    num_lanes = st.number_input("Number of Lanes", min_value=1, value=2)
+    condition_rating = st.number_input("Condition Rating", min_value=0, max_value=9, value=7)
+    material = st.selectbox("Material", ['STEEL', 'CONCRETE', 'WOOD', 'MASONRY'])
 
-# Normalize numerical features
-scaler = StandardScaler()
-numerical_cols = ['Span_ft', 'Deck_Width_ft', 'Age_Years', 'Num_Lanes', 'Condition_Rating']
-df_scaled = pd.DataFrame(scaler.fit_transform(df[numerical_cols]), columns=numerical_cols)
+    # Prediction button
+    if st.button("Predict Maximum Load"):
+        input_data = {
+            'Span_ft': span_ft,
+            'Deck_Width_ft': deck_width_ft,
+            'Age_Years': age_years,
+            'Num_Lanes': num_lanes,
+            'Condition_Rating': condition_rating,
+            'Material': material
+        }
 
-# Combine processed data
-df_final = pd.concat([df_scaled, df_encoded, df[['Max_Load_Tons']]], axis=1)
+        prediction = predict_load(input_data)
 
-# Train-test split
-X = df_final.drop(columns=['Max_Load_Tons'])
-y = df_final['Max_Load_Tons']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        if prediction is not None:
+            st.success(f"Predicted Maximum Load: {prediction:.2f} tons")
 
-# Save preprocessing pipeline
-with open("preprocessing.pkl", "wb") as f:
-    pickle.dump((scaler, encoder), f)
-
-# Build ANN model
-def build_model():
-    model = keras.Sequential([
-        keras.layers.Dense(64, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01), input_shape=(X_train.shape[1],)),
-        keras.layers.Dropout(0.2),
-        keras.layers.Dense(32, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01)),
-        keras.layers.Dropout(0.2),
-        keras.layers.Dense(1)  # Output layer for regression
-    ])
-    model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-    return model
-
-# Train model
-model = build_model()
-early_stopping = keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)
-history = model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=100, batch_size=32, callbacks=[early_stopping])
-
-# Save trained model
-model.save("tf_bridge_model.h5")
-
-# Evaluate model
-test_loss, test_mae = model.evaluate(X_test, y_test)
-print(f"Test MAE: {test_mae}")
+if __name__ == "__main__":
+    main()

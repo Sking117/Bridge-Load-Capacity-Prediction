@@ -9,10 +9,10 @@ from tensorflow.keras.losses import MeanSquaredError  # Import MSE explicitly
 try:
     # Explicitly define MSE when loading the model
     model_all = keras.models.load_model(
-        'model_all.h5',
+        r"C:\Users\sydne\OneDrive\Documents\Computer Applications\bridge_load_model.h5",
         custom_objects={'mse': MeanSquaredError}  # Use MSE class
     )
-    preprocessor_all = joblib.load(r"C:\Users\sydne\OneDrive\Documents\Computer Applications\preprocessing_pipeline.pkl")
+    preprocessor_all = joblib.load(r"C:\Users\sydne\OneDrive\Documents\Computer Applications\preprocessing_all.pkl")
 except FileNotFoundError:
     st.error("Model or preprocessing pipeline files not found. Please ensure 'model_all.h5' and 'preprocessor_all.pkl' are in the same directory.")
     st.stop()

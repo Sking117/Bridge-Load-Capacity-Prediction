@@ -7,27 +7,29 @@ from tensorflow.keras.losses import MeanSquaredError
 import urllib.request
 import os
 
-# Load the trained model and preprocessing pipeline
+
+
+
+model_url = "https://raw.githubusercontent.com/Sking117/Bridge-Load-Capacity-Prediction/main/bridge_load_model.h5"
+preprocessor_url = "https://raw.githubusercontent.com/Sking117/Bridge-Load-Capacity-Prediction/main/preprocessing_all.pkl"
 model_path = "model_all.h5"
 preprocessor_path = "preprocessing_all.pkl"
 
 if not os.path.exists(model_path):
     try:
-        urllib.request.urlretrieve(
-            "https://github.com/Sking117/Bridge-Load-Capacity-Prediction/blob/main/bridge_load_model.h5", model_path
-        )  # Replace with the actual URL
+        urllib.request.urlretrieve(model_url, model_path)
     except Exception as e:
         st.error(f"Failed to download model: {e}")
         st.stop()
 
 if not os.path.exists(preprocessor_path):
     try:
-        urllib.request.urlretrieve(
-            "https://github.com/Sking117/Bridge-Load-Capacity-Prediction/blob/main/preprocessing_all.pkl", preprocessor_path
-        )  # Replace with the actual URL
+        urllib.request.urlretrieve(preprocessor_url, preprocessor_path)
     except Exception as e:
         st.error(f"Failed to download preprocessor: {e}")
         st.stop()
+
+# ... rest of your Streamlit app code ...
 
 try:
     model_all = keras.models.load_model(

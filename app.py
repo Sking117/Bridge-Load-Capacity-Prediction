@@ -3,25 +3,42 @@ import pandas as pd
 import joblib
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.losses import MeanSquaredError  # Import MSE explicitly
+from tensorflow.keras.losses import MeanSquaredError
 import urllib.request
+import os
 
 # Load the trained model and preprocessing pipeline
-try:
-    # Explicitly define MSE when loading the model
-    model_all = keras.models.load_model(
-        r"C:\Users\sydne\OneDrive\Documents\Computer Applications\bridge_load_model.h5",
-        custom_objects={'mse': MeanSquaredError}  # Use MSE class
-    )
-    preprocessor_all = joblib.load(r"C:\Users\sydne\OneDrive\Documents\Computer Applications\preprocessing_all.pkl")
-except FileNotFoundError:
-    st.error("Model or preprocessing pipeline files not found. Please ensure 'model_all.h5' and 'preprocessor_all.pkl' are in the same directory.")
-    st.stop()
+model_path = "model_all.h5"
+preprocessor_path = "preprocessing_all.pkl"
 
-if not os.path.exists("model_all.h5"):
-    urllib.request.urlretrieve(r"C:\Users\sydne\OneDrive\Documents\Computer Applications\app.py", "model_all.h5")
-if not os.path.exists("preprocessor_all.pkl"):
-    urllib.request.urlretrieve(r"C:\Users\sydne\OneDrive\Documents\Computer Applications\preprocessing_all.pkl", "preprocessor_all.pkl")
+if not os.path.exists(model_path):
+    try:
+        urllib.request.urlretrieve(
+            "https://github.com/Sking117/Bridge-Load-Capacity-Prediction/blob/main/bridge_load_model.h5", model_path
+        )  # Replace with the actual URL
+    except Exception as e:
+        st.error(f"Failed to download model: {e}")
+        st.stop()
+
+if not os.path.exists(preprocessor_path):
+    try:
+        urllib.request.urlretrieve(
+            "https://github.com/Sking117/Bridge-Load-Capacity-Prediction/blob/main/preprocessing_all.pkl", preprocessor_path
+        )  # Replace with the actual URL
+    except Exception as e:
+        st.error(f"Failed to download preprocessor: {e}")
+        st.stop()
+
+try:
+    model_all = keras.models.load_model(
+        model_path, custom_objects={"mse": MeanSquaredError}
+    )
+    preprocessor_all = joblib.load(preprocessor_path)
+except FileNotFoundError:
+    st.error(
+        "Model or preprocessing pipeline files not found. Please ensure 'model_all.h5' and 'preprocessing_all.pkl' are in the same directory or have been downloaded successfully."
+    )
+    st.stop()
 
 # Function to make predictions
 def predict_load(input_data):
@@ -44,7 +61,7 @@ def main():
     age_years = st.number_input("Age (Years)", min_value=0, value=50)
     num_lanes = st.number_input("Number of Lanes", min_value=1, value=2)
     condition_rating = st.number_input("Condition Rating", min_value=0, max_value=9, value=7)
-    material = st.selectbox("Material", ['STEEL', 'CONCRETE', 'WOOD', 'MASONRY'])
+    material = st.selectbox("Material", ["STEEL", "CONCRETE", "WOOD", "MASONRY"])
     # Add other features based on what you included in 'preprocessor_all'
     # Example (adjust based on your actual data):
     # bridge_id = st.text_input("Bridge ID", "Bridge_1")
@@ -53,14 +70,14 @@ def main():
     # Prediction button
     if st.button("Predict Maximum Load (All Features)"):
         input_data = {
-            'Span_ft': span_ft,
-            'Deck_Width_ft': deck_width_ft,
-            'Age_Years': age_years,
-            'Num_Lanes': num_lanes,
-            'Condition_Rating': condition_rating,
-            'Material': material,
+            "Span_ft": span_ft,
+            "Deck_Width_ft": deck_width_ft,
+            "Age_Years": age_years,
+            "Num_Lanes": num_lanes,
+            "Condition_Rating": condition_rating,
+            "Material": material,
             # Add other features here, matching the preprocessor_all
-            # 'Bridge_ID': bridge_id,
+            # "Bridge_ID": bridge_id,
             # ... other features ...
         }
 
